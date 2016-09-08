@@ -1,0 +1,16 @@
+Package: FEEMProbit
+Version: 0.0.1
+Date: 2016-09-07
+Title: FEEMProbit
+Description: Function to estimate the individual fixed effects expecation-
+    maximization estimator in Chen (2016)
+Author: Christoph Walsh
+Maintainer: Christoph Walsh <walshcb@bu.edu>
+Depends:
+    R (>= 2.15.0)
+Imports:
+    data.table,
+    plm
+License: GPL-3
+URL: https://github.com/walshc/FEEMProbit
+RoxygenNote: 5.0.1
