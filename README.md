@@ -10,5 +10,6 @@ devtools::install_github("walshc/FEEMProbit")
 
 ## Example Usage
 ```r
+df <- plm::pdata.frame(df, index = c("id", "time"))
 FEEMProbit(y ~ x1 + x2, data = df)
 ```

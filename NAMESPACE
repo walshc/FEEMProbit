@@ -1,2 +1,3 @@
 import(data.table)
 export(FEEMProbit)
+export(print.FEEMProbit)

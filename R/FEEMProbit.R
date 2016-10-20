@@ -44,7 +44,7 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     mu_k + ((y - p) * dnorm(mu_k)) / (p * (1 - p))
   }
   get_beta_k <- function(y_k, alpha_k) {
-    solve(t(X) %*% X) %*% (t(X) %*% (y_k - rep(alpha_k, each = nT)))
+    solve(crossprod(X)) %*% crossprod(X, y_k - rep(alpha_k, each = nT))
   }
   get_alpha_k <- function(y_k, beta_k) {
     df <- data.table(a = c(y_k - X %*% beta_k), id = rep(1:N, each = nT))
@@ -61,7 +61,7 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     y_k <- get_y_k(y, mu_k)
     # M-step:
     new_beta_k <- get_beta_k(y_k, alpha_k)
-    new_alpha_k <- get_alpha_k(y_k, beta_k)
+    new_alpha_k <- get_alpha_k(y_k, new_beta_k)
     dist <- norm(as.matrix(c(new_beta_k, new_alpha_k) - c(beta_k, new_alpha_k)))
     beta_k <- new_beta_k
     alpha_k <- new_alpha_k
@@ -72,5 +72,16 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
   beta_k <- c(beta_k)
   names(beta_k) <- names(mf)[2:ncol(mf)]
   names(alpha_k) <- sort(unique(index(data, "id")))
-  return(list(call = cl, coefficients = beta_k, fixed.effects = alpha_k))
+  predicted.values <- c(X %*% beta_k + rep(alpha_k, each = nT))
+  result <- list(call = cl, coefficients = beta_k, fixed.effects = alpha_k,
+                 predicted.values = predicted.values)
+  class(result) <- "FEEMProbit"
+  return(result)
+}
+
+print.FEEMProbit <- function(x) {
+  cat("Call:\n")
+  print(x$call)
+  cat("\nCoefficients:\n")
+  print(x$coefficients)
 }
