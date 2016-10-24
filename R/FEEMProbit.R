@@ -11,36 +11,32 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     stop("'tol' must be numeric. Default is 1e-9.")
   }
 
-  mf <- model.frame(as.Formula(formula), data)
-  mf$orig.row.id <- 1:nrow(mf)
-  mf <- mf[order(df[[ncol(mf) - 1]]), ]
-  id <- as.matrix(mf[, ncol(mf) - 1])
+  mf <- na.omit(model.frame(as.Formula(formula), data))
   y <- as.matrix(mf[[1]])
-  X <- as.matrix(mf[, c(2:(ncol(mf) - 2))])
-  N <- length(unique(id))
-
-  times <- aggregate(y ~ id, FUN = length)$V1
+  X <- as.matrix(mf[, c(2:(ncol(mf) - 1))])
+  id <- mf[, ncol(mf)]
 
   # Functions to use inside E-M algorithm:
   get_mu_k <- function(X, beta_k, alpha_k) {
-    X %*% beta_k + rep(alpha_k, times = times)
+    X %*% beta_k + alpha_k
   }
   get_y_k <- function(y, mu_k) {
     p <- pnorm(mu_k)
     mu_k + ((y - p) * dnorm(mu_k)) / (p * (1 - p))
   }
   get_beta_k <- function(y_k, alpha_k) {
-    solve(crossprod(X)) %*% crossprod(X, y_k - rep(alpha_k, times = times))
+    solve(crossprod(X)) %*% crossprod(X, y_k - alpha_k)
   }
   get_alpha_k <- function(y_k, beta_k) {
-    df <- data.table(a = c(y_k - X %*% beta_k), id = rep(1:N, times = times))
-    df[, mean(a), by = id]$V1
+    df <- data.table(a = c(y_k - X %*% beta_k), id = id)
+    df[, alpha_k := mean(a), by = id]
+    return(df$alpha_k)
   }
 
   # Run the E-M algorithm:
   dist <- tol + 1
   beta_k <- matrix(rep(0, ncol(X)))
-  alpha_k <- matrix(rep(0, N))
+  alpha_k <- matrix(rep(0, nrow(mf)))
   while (dist > tol) {
     # E-step:
     mu_k <- get_mu_k(X, beta_k, alpha_k)
@@ -48,7 +44,8 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     # M-step:
     new_beta_k <- get_beta_k(y_k, alpha_k)
     new_alpha_k <- get_alpha_k(y_k, new_beta_k)
-    dist <- norm(as.matrix(c(new_beta_k, new_alpha_k) - c(beta_k, new_alpha_k)))
+    dist <- norm(as.matrix(c(new_beta_k, new_alpha_k) -
+                           c(beta_k, new_alpha_k)))
     beta_k <- new_beta_k
     alpha_k <- new_alpha_k
     if (show.progress) {
@@ -56,14 +53,14 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     }
   }
   beta_k <- c(beta_k)
-  names(beta_k) <- names(mf)[2:(ncol(mf)-2)]
-  names(alpha_k) <- unique(id)
-  mf$predicted.values <- c(X %*% beta_k + rep(alpha_k, times = times))
-  mf <- mf[order(mf$orig.row.id), ]
-  mf$orig.row.id <- NULL
+  names(beta_k) <- names(mf)[2:(ncol(mf) - 1)]
   result <- list(call = cl, coefficients = beta_k)
-  result$fixed.effects <- data.frame(id = sort(unique(id)), fe = alpha_k)
-  result$predicted.values <- mf$predicted.values
+  fe <- data.table(id = id, fe = new_alpha_k)
+  fe <- fe[, .(fe = mean(fe)), by = id]
+  setnames(fe, "id", names(mf)[ncol(mf)])
+  result$fixed.effects <- fe
+  result$fitted.values <- c(X %*% beta_k + alpha_k)
+  result$residuals <- y - result$fitted.values
   result$model <- mf
   class(result) <- "FEEMProbit"
   return(result)

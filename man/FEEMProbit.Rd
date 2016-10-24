@@ -22,7 +22,8 @@ FEEMProbit(formula, data, tol = 1e-9, show.progress = FALSE)
   \item{call}{The function call.}
   \item{coefficients}{The estimated coefficients.}
   \item{fixed.effects}{The estimated individual fixed effects.}
-  \item{predicted.values}{The fitted values of the model.}
+  \item{fitted.values}{The fitted values of the model.}
+  \item{residuals}{The model's residuals.}
   \item{model}{The \code{data.frame} used to estimate the model.}
 }
 \examples{
