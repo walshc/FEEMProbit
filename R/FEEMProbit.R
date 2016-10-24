@@ -11,6 +11,10 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     stop("'tol' must be numeric. Default is 1e-9.")
   }
 
+  if (!grepl("|", as.character(as.Formula(formula))[3])) {
+    stop("The fixed effect variable should be placed after '|' in the formula.")
+  }
+
   mf <- na.omit(model.frame(as.Formula(formula), data))
   y <- as.matrix(mf[[1]])
   X <- as.matrix(mf[, c(2:(ncol(mf) - 1))])
