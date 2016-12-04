@@ -15,9 +15,11 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     stop("The fixed effect variable should be placed after '|' in the formula.")
   }
 
-  mf <- na.omit(model.frame(as.Formula(formula), data))
+  X <- model.matrix(as.Formula(formula), data)
+  X <- X[!is.na(data[[as.character(formula[[2]])]]), ]
+  crossprod.X.inv <- MASS::ginv(crossprod(X))
+  mf <- model.frame(as.Formula(formula), data)
   y <- as.matrix(mf[[1]])
-  X <- as.matrix(mf[, c(2:(ncol(mf) - 1))])
   id <- mf[, ncol(mf)]
 
   # Functions to use inside E-M algorithm:
@@ -29,7 +31,7 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     mu_k + ((y - p) * dnorm(mu_k)) / (p * (1 - p))
   }
   get_beta_k <- function(y_k, alpha_k) {
-    solve(crossprod(X)) %*% crossprod(X, y_k - alpha_k)
+    crossprod.X.inv %*% crossprod(X, y_k - alpha_k)
   }
   get_alpha_k <- function(y_k, beta_k) {
     df <- data.table(a = c(y_k - X %*% beta_k), id = id)
@@ -57,13 +59,13 @@ FEEMProbit <- function(formula, data, tol = 1e-9, show.progress = FALSE) {
     }
   }
   beta_k <- c(beta_k)
-  names(beta_k) <- names(mf)[2:(ncol(mf) - 1)]
+  names(beta_k) <- colnames(X)
   result <- list(call = cl, coefficients = beta_k)
   fe <- data.table(id = id, fe = new_alpha_k)
   fe <- fe[, .(fe = mean(fe)), by = id]
   setnames(fe, "id", names(mf)[ncol(mf)])
   result$fixed.effects <- fe
-  result$fitted.values <- c(X %*% beta_k + alpha_k)
+  result$fitted.values <- dnorm(c(X %*% beta_k + alpha_k))
   result$residuals <- y - result$fitted.values
   result$model <- mf
   class(result) <- "FEEMProbit"
